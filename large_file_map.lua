@@ -44,19 +44,31 @@ local function main(params)
 
   local cnt = params.x * params.y * 3
   local cl = math.ceil(dl / cnt)
-  if cl < 1 then cl = 1 end
-  print("File: \"" .. params.sd .. "\"\n" .. dl .. plural_bytes(dl) .. ", averaging length: " .. cl .. plural_bytes(cl) .. ".\n")
+  if cl < 1 then cl = 1 end  -- if file has 0 length
+  print("File: \"" .. params.sd .. "\"\n" .. dl .. plural_bytes(dl) .. ", averaging length: " .. cl .. plural_bytes(cl) .. ".")
 
   local img = torch.DoubleTensor(3, params.y, params.x):zero()
   df:seek("set")
   local ci = 0
-  local sc = os.clock()
+
+  -- It seems that 32-bit Lua v5.2 produces times like this:
+  -- 0 ... 2147.483647, -2147.483648 ... 2147.483647, -2147.483648...
+  -- (32-bit signed counter of microseconds),
+  -- therefore the counter should be corrected
+  -- to measure intervals longer than 2147.5 seconds.
+  local clock_round = 0
+  local clock_current = 0
+  local clock_previous = -2148
+
+  print('Starting...')
+  local clock_start = os.clock()
+
   for y = 1, params.y do
   for x = 1, params.x do
   for i = 1, 3 do
     local c = df:read(cl)
     if c ~= nil then
-      -- Torch 7 tensor format: 4,1,3,"V 1",16,"torch.ByteTensor",1,len,1,1,4,2,3,"V 1",17,"torch.ByteStorage",len,data
+      -- Torch 7 tensor format: 4,1,3,"V 1",16,"torch.ByteTensor",1,length,1,1,4,2,3,"V 1",17,"torch.ByteStorage",length,data
       local lcl = #c
       local lclb = string.char((lcl % 256), (bit32.rshift(lcl, 8) % 256), (bit32.rshift(lcl, 16) % 256), (bit32.rshift(lcl, 24) % 256))
       local t = torch.deserialize("\4\0\0\0\1\0\0\0\3\0\0\0V 1\16\0\0\0torch.ByteTensor\1\0\0\0" .. lclb .. "\1\0\0\0\1\0\0\0\4\0\0\0\2\0\0\0\3\0\0\0V 1\17\0\0\0torch.ByteStorage" .. lclb .. c)
@@ -66,14 +78,19 @@ local function main(params)
 
       ci = ci + 1
       if (i == 1) and (x == 1) then
-        print(string.format('\027[1A\027[K\027[1000D%1.3f%%, %1.1f seconds remain', ci / cnt * 100, (os.clock() - sc) / ci * (cnt - ci)))
+        clock_current = os.clock()
+        if clock_current < clock_previous then clock_round = clock_round + 1 end
+        clock_previous = clock_current
+        print(string.format('\027[1A\027[K\027[1000D%1.3f%%, %1.1f seconds remaining.', ci / cnt * 100, (clock_round * 4294.967296 + clock_current - clock_start) / ci * (cnt - ci)))
         image.save(params.image, img)
       end
     end
   end
   end
   end
-  print(string.format('\027[1A\027[K\027[1000D100%%, %1.3f seconds.', (os.clock() - sc)))
+  clock_current = os.clock()
+  if clock_current < clock_previous then clock_round = clock_round + 1 end
+  print(string.format('\027[1A\027[K\027[1000D100%%, %1.3f seconds.', (clock_round * 4294.967296 + clock_current - clock_start)))
 
   df:close()
   image.save(params.image, img:clamp(0, 1))
