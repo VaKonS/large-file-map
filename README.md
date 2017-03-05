@@ -15,6 +15,6 @@ Requirements:
 
 --
 
-Example image of 64 Gb SD card (1 pixel is ~100 kbytes; the beginning contains files and the rest is probably empty):
+Example image of 64 Gb SD card (1 pixel is ~100 kilobytes; the beginning contains files and the rest is probably empty):
 
 ![Example image of SD card.](https://github.com/VaKonS/large-file-map/raw/master/test.jpg)
