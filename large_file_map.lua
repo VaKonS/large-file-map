@@ -6,14 +6,11 @@ local cmd = torch.CmdLine()
 cmd:text()
 cmd:text('Makes visual file map.')
 cmd:text()
-cmd:option('-sd', '',
-           'Source data file.')
-cmd:option('-image', 'out.png',
-           'Output image file.')
-cmd:option('-x', 1366,
-           'Output image width.')
-cmd:option('-y', 768,
-           'Output image height.')
+cmd:option('-sd',           '', 'Source data file name.')
+cmd:option('-size',          0, 'Data file size in bytes (if it was detected incorrectly).')
+cmd:option('-image', 'out.png', 'Output image name.')
+cmd:option('-x',          1366, 'Image width.')
+cmd:option('-y',           768, 'Image height.')
 cmd:text()
 
 
@@ -35,11 +32,16 @@ local function main(params)
     os.exit()
   end
 
-  local dl = df:seek("end")
-  if dl == -1 then
-    -- Block size is assumed to be 512 bytes, how to detect it?
-    local lfs = require 'lfs'
-    dl = math.floor(512 * lfs.attributes(params.sd, 'blocks') / 4294967296) * 4294967296 + (lfs.attributes(params.sd, 'size') + 4294967296) % 4294967296
+  local dl
+  if params.size > 0 then
+    dl = params.size
+  else
+    dl = df:seek("end")
+    if dl == -1 then
+      -- Block size is assumed to be 512 bytes, how to detect it?
+      local lfs = require 'lfs'
+      dl = math.floor(512 * lfs.attributes(params.sd, 'blocks') / 4294967296) * 4294967296 + (lfs.attributes(params.sd, 'size') + 4294967296) % 4294967296
+    end
   end
 
   local cnt = params.x * params.y * 3
