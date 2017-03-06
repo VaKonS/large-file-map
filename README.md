@@ -9,7 +9,10 @@ The map is constantly updated during scan.
 - Torch Image (https://github.com/torch/image);
 - LuaFileSystem for files larger than 2 Gb (https://github.com/keplerproject/luafilesystem).
 
---
+**License:**
+
+Public domain.
+
 **Usage:**
 
 `th large_file_map.lua -sd "test.jpg" -size 580938 -image "out.png" -x 1024 -y 768`
@@ -20,7 +23,6 @@ The map is constantly updated during scan.
 - `-x` – map width;
 - `-y` – map height.
 
---
 **Possible problems:**
 - If the size of source data file is wrong (on Windows or maybe on disks with "Advanced Format"), please set it manually with `-size N` option, in bytes.
 
