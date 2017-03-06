@@ -47,6 +47,9 @@ local function main(params)
   if cl < 1 then cl = 1 end  -- if file has 0 length
   print("File: \"" .. params.sd .. "\"\n" .. dl .. plural_bytes(dl) .. ", averaging length: " .. cl .. plural_bytes(cl) .. ".")
 
+  -- serialized torch.ByteTensor(cl) template without data, to not recalculate it every time
+  local bt_tp_cl = string.sub(torch.serialize(torch.ByteTensor(cl), 'binary'), 1, (-1 - cl))
+
   local img = torch.DoubleTensor(3, params.y, params.x):zero()
   df:seek("set")
   local ci = 0
@@ -68,13 +71,13 @@ local function main(params)
   for i = 1, 3 do
     local c = df:read(cl)
     if c ~= nil then
-      -- Torch 7 tensor format: 4,1,3,"V 1",16,"torch.ByteTensor",1,length,1,1,4,2,3,"V 1",17,"torch.ByteStorage",length,data
-      local lcl = #c
-      local lclb = string.char((lcl % 256), (bit32.rshift(lcl, 8) % 256), (bit32.rshift(lcl, 16) % 256), (bit32.rshift(lcl, 24) % 256))
-      local t = torch.deserialize("\4\0\0\0\1\0\0\0\3\0\0\0V 1\16\0\0\0torch.ByteTensor\1\0\0\0" .. lclb .. "\1\0\0\0\1\0\0\0\4\0\0\0\2\0\0\0\3\0\0\0V 1\17\0\0\0torch.ByteStorage" .. lclb .. c)
-      -- print(#t)
-      -- print(t)
-      img[i][y][x] = t:double():mean() / 255
+      local ser_tensor
+      if #c == cl then
+        ser_tensor = bt_tp_cl .. c
+      else
+        ser_tensor = string.sub(torch.serialize(torch.ByteTensor(#c), 'binary'), 1, (-1 - #c)) .. c
+      end
+      img[i][y][x] = torch.deserialize(ser_tensor, 'binary'):double():mean() / 255
 
       ci = ci + 1
       if (i == 1) and (x == 1) then
@@ -90,7 +93,7 @@ local function main(params)
   end
   clock_current = os.clock()
   if clock_current < clock_previous then clock_round = clock_round + 1 end
-  print(string.format('\027[1A\027[K\027[1000D100%%, %1.3f seconds.', (clock_round * 4294.967296 + clock_current - clock_start)))
+  print(string.format('\027[1A\027[K\027[1000D100%%, %1.1f seconds.', (clock_round * 4294.967296 + clock_current - clock_start)))
 
   df:close()
   image.save(params.image, img:clamp(0, 1))
