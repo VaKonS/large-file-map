@@ -23,6 +23,16 @@ local function plural_bytes(n)
   return b
 end
 
+-- In 32-bit Lua v5.2 time counter should be corrected if program is running longer than 2147.5 seconds.
+local lua52_time_corrector_clock_round, lua52_time_corrector_clock_previous = 0, -2148
+local function Lua52CorrectedTime()
+-- Call it instead of os.clock(). Must be called more often than every 4294 seconds (~1h 11,5m).
+  local clock_current = os.clock()
+  if clock_current < lua52_time_corrector_clock_previous then lua52_time_corrector_clock_round = lua52_time_corrector_clock_round + 1 end
+  lua52_time_corrector_clock_previous = clock_current
+  return lua52_time_corrector_clock_round * 4294.967296 + clock_current
+end
+
 
   if params.sd == '' then
     print("\nInput data file is not given.\n")
@@ -58,17 +68,8 @@ end
   df:seek("set")
   local ci = 0
 
-  -- It seems that 32-bit Lua v5.2 produces times like this:
-  -- 0 ... 2147.483647, -2147.483648 ... 2147.483647, -2147.483648...
-  -- (32-bit signed counter of microseconds),
-  -- therefore the counter should be corrected
-  -- to measure intervals longer than 2147.5 seconds.
-  local clock_round = 0
-  local clock_current = 0
-  local clock_previous = -2148
-
   print('Starting...')
-  local clock_start = os.clock()
+  local clock_start = Lua52CorrectedTime()
 
   for y = 1, params.y do
   for x = 1, params.x do
@@ -84,10 +85,7 @@ end
 
       ci = ci + 1
       if (x == 1) then
-        clock_current = os.clock()
-        if clock_current < clock_previous then clock_round = clock_round + 1 end
-        clock_previous = clock_current
-        print(string.format('\027[1A\027[K\027[1000D%1.3f%%, %1.1f seconds remaining.', ci / cnt * 100, (clock_round * 4294.967296 + clock_current - clock_start) / ci * (cnt - ci)))
+        print(string.format('\027[1A\027[K\027[1000D%1.3f%%, %1.1f seconds remaining.', ci / cnt * 100, (Lua52CorrectedTime() - clock_start) / ci * (cnt - ci)))
         if (y % params.u) == 0 then
           image.save(params.image, img)
         end
@@ -95,9 +93,7 @@ end
     end
   end
   end
-  clock_current = os.clock()
-  if clock_current < clock_previous then clock_round = clock_round + 1 end
-  print(string.format('\027[1A\027[K\027[1000D100%%, %1.1f seconds.', (clock_round * 4294.967296 + clock_current - clock_start)))
+  print(string.format('\027[1A\027[K\027[1000D100%%, %1.1f seconds.', Lua52CorrectedTime() - clock_start))
 
   df:close()
   print("Writing \"" .. params.image .. "\".\n")
