@@ -69,7 +69,7 @@ end
   local ci = 0
 
   print('Starting...')
-  local clock_start = Lua52CorrectedTime()
+  local clock_start = os.time(os.date("!*t"))
 
   for y = 1, params.y do
   for x = 1, params.x do
@@ -85,7 +85,7 @@ end
 
       ci = ci + 1
       if (x == 1) then
-        print(string.format('\027[1A\027[K\027[1000D%1.3f%%, %1.1f seconds remaining.', ci / cnt * 100, (Lua52CorrectedTime() - clock_start) / ci * (cnt - ci)))
+        print(string.format('\027[1A\027[K\027[1000D%1.3f%%, %1.1f seconds remaining.', ci / cnt * 100, os.difftime(os.time(os.date("!*t")), clock_start) / ci * (cnt - ci)))
         if (y % params.u) == 0 then
           image.save(params.image, img)
         end
@@ -93,7 +93,7 @@ end
     end
   end
   end
-  print(string.format('\027[1A\027[K\027[1000D100%%, %1.1f seconds.', Lua52CorrectedTime() - clock_start))
+  print(string.format('\027[1A\027[K\027[1000D100%%, %1.1f seconds.', os.difftime(os.time(os.date("!*t")), clock_start)))
 
   df:close()
   print("Writing \"" .. params.image .. "\".\n")
